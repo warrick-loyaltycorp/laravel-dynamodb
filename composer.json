@@ -2,9 +2,9 @@
     "name": "baopham/dynamodb",
     "description": "DynamoDb wrapper for your Laravel model and helpers",
     "require": {
-        "aws/aws-sdk-php": "3.0.*@dev",
-        "illuminate/support": "~5.1",
-        "illuminate/database": "~5.1"
+        "aws/aws-sdk-php": "~2.0",
+        "illuminate/support": "~5.0",
+        "illuminate/database": "~5.0"
     },
     "license": "MIT",
     "authors": [

@@ -26,7 +26,7 @@ class DynamoDbClientService implements DynamoDbClientInterface
 
     public function __construct($config, Marshaler $marshaler, EmptyAttributeFilter $filter)
     {
-        $this->client = new DynamoDbClient($config);
+        $this->client = DynamoDbClient::factory($config);
         $this->marshaler = $marshaler;
         $this->attributeFilter = $filter;
     }
