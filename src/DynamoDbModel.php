@@ -255,16 +255,16 @@ abstract class DynamoDbModel extends Model
             $query['AttributesToGet'] = $columns;
         }
 
-        // If the $where is not empty, we run getIterator.
         if (!empty($this->where)) {
 
             // Primary key or index key condition exists, then use Query instead of Scan.
             if ($key = $this->conditionsContainIndexKey()) {
                 $op = 'Query';
                 $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
+                $filter = 'KeyConditions';
             }
 
-            $query['KeyConditions'] = $this->where;
+            $query[$filter] = $this->where;
         }
 
         $iterator = $this->client->getIterator($op, $query);
