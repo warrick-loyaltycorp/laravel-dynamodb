@@ -24,6 +24,7 @@ class DynamoDbServiceProvider extends ServiceProvider
                     'key' => 'dynamodb_local',
                     'secret' => 'secret',
                     'region' => $region,
+                    'version' => '2012-08-10',
                     'base_url' => config('services.dynamodb.local_endpoint')
                 ];
                 $client = new DynamoDbClientService($config, new Marshaler, new EmptyAttributeFilter);
@@ -35,6 +36,7 @@ class DynamoDbServiceProvider extends ServiceProvider
                     'key' => config('services.dynamodb.key'),
                     'secret' => config('services.dynamodb.secret'),
                     'region' => config('services.dynamodb.region'),
+                    'version' => '2012-08-10',
                 ];
                 $client = new DynamoDbClientService($config, new Marshaler, new EmptyAttributeFilter);
                 return $client;
