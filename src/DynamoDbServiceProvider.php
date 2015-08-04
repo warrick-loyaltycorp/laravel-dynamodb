@@ -28,6 +28,7 @@ class DynamoDbServiceProvider extends ServiceProvider
                     'base_url' => config('services.dynamodb.local_endpoint')
                 ];
                 $client = new DynamoDbClientService($config, new Marshaler, new EmptyAttributeFilter);
+
                 return $client;
             });
         } else {
@@ -39,6 +40,7 @@ class DynamoDbServiceProvider extends ServiceProvider
                     'version' => '2012-08-10',
                 ];
                 $client = new DynamoDbClientService($config, new Marshaler, new EmptyAttributeFilter);
+
                 return $client;
             });
         }

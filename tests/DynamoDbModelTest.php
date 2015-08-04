@@ -32,10 +32,6 @@ class DynamoDbModelTest extends TestCase
 
     protected function bindDynamoDbClientInstance()
     {
-        $marshalerOptions = [
-            'nullify_invalid' => true,
-        ];
-
         $config = [
             'credentials' => [
                 'key' => 'dynamodb_local',
@@ -45,7 +41,7 @@ class DynamoDbModelTest extends TestCase
             'version' => '2012-08-10',
             'endpoint' => 'http://localhost:3000',
         ];
-        $this->dynamoDb = new DynamoDbClientService($config, new Marshaler($marshalerOptions),
+        $this->dynamoDb = new DynamoDbClientService($config, new Marshaler(),
             new EmptyAttributeFilter);
 
         $this->testModel = new TestModel([], $this->dynamoDb);
