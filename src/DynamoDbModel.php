@@ -232,14 +232,30 @@ abstract class DynamoDbModel extends Model
             throw new NotSupportedException('Closure in where clause is not supported');
         }
 
-        $attributeValueList = $model->marshalItem([
-            'AttributeValueList' => $value
-        ]);
+        if (array_key_exists($column, $model->where)) {
+            $existingItem = $model->where[$column];
+            $existingOperator = $existingItem["ComparisonOperator"];
+            if (($operator == '<' || $operator == '<=') && ($existingOperator == 'GT' || $existingOperator == 'GE')) {
+                $existingItem["AttributeValueList"][] = $model->marshalItem([count($existingItem["AttributeValueList"]) => $value])[count($existingItem["AttributeValueList"])];
+                $existingItem["ComparisonOperator"] = "BETWEEN";
+                $model->where[$column] = $existingItem;
+            } else if ($existingOperator == 'EQ') {
+                $existingItem["AttributeValueList"][] = $model->marshalItem([count($existingItem["AttributeValueList"]) => $value])[count($existingItem["AttributeValueList"])];
+                $existingItem["ComparisonOperator"] = "IN";
+                $model->where[$column] = $existingItem;
+            } else {
+                throw new NotSupportedException("Multiple condition on column $column cannot be satisfied");
+            }
+        } else {
+            $attributeValueList = $model->marshalItem([
+                'AttributeValueList' => $value,
+            ]);
 
-        $model->where[$column] = [
-            'AttributeValueList' => [$attributeValueList['AttributeValueList']],
-            'ComparisonOperator' => ComparisonOperator::getDynamoDbOperator($operator)
-        ];
+            $model->where[$column] = [
+                'AttributeValueList' => [$attributeValueList['AttributeValueList']],
+                'ComparisonOperator' => ComparisonOperator::getDynamoDbOperator($operator),
+            ];
+        }
 
         return $model;
     }
