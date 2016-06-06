@@ -232,6 +232,7 @@ abstract class DynamoDbModel extends Model
             throw new NotSupportedException('Closure in where clause is not supported');
         }
 
+        $added = false;
         if (array_key_exists($column, $model->where)) {
             $existingItem = $model->where[$column];
             $existingOperator = $existingItem["ComparisonOperator"];
@@ -239,14 +240,16 @@ abstract class DynamoDbModel extends Model
                 $existingItem["AttributeValueList"][] = $model->marshalItem([count($existingItem["AttributeValueList"]) => $value])[count($existingItem["AttributeValueList"])];
                 $existingItem["ComparisonOperator"] = "BETWEEN";
                 $model->where[$column] = $existingItem;
+                $added = true;
             } else if ($existingOperator == 'EQ') {
                 $existingItem["AttributeValueList"][] = $model->marshalItem([count($existingItem["AttributeValueList"]) => $value])[count($existingItem["AttributeValueList"])];
                 $existingItem["ComparisonOperator"] = "IN";
                 $model->where[$column] = $existingItem;
-            } else {
-                throw new NotSupportedException("Multiple condition on column $column cannot be satisfied");
+                $added = true;
             }
-        } else {
+        }
+            
+        if (!$added) {
             $attributeValueList = $model->marshalItem([
                 'AttributeValueList' => $value,
             ]);
