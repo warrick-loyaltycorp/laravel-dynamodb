@@ -343,7 +343,7 @@ abstract class DynamoDbModel extends Model
                 if (ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
-                    $query['KeyConditions'] = $this->where;
+                    $query['KeyConditions'] = [$key => $this->where[$key]];
                 }
             }
 
