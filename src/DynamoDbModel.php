@@ -344,10 +344,43 @@ abstract class DynamoDbModel extends Model
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
                     $query['KeyConditions'] = [$key => $this->where[$key]];
-                }
-            }
+                    unset($this->where[$key]);
 
-            $query['ScanFilter'] = $this->where;
+                    $filterExpression = "";
+                    foreach ($this->where as $key => $value) {
+                        $type = gettype($value);
+                        switch ($type) {
+                        case "boolean":
+                        case "integer":
+                        case "double":
+                            $attributeType = "N";
+                            break;
+                        case "array":
+                            $attributeType = "L";
+                            break;
+                        case "string":
+                        default:
+                            $attributeType = "S";
+                            break;
+                        }
+                        if ($attributeType == "L") {
+                            $filterExpression .= "$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
+                            $query["ExpressionAttributeValues"][":".$key."1"] = [array_keys($value["AttributeValueList"][0])[0] => (string)array_values($value["AttributeValueList"][0])[0]];
+                            $query["ExpressionAttributeValues"][":".$key."2"] = [array_keys($value["AttributeValueList"][1])[0] => (string)array_values($value["AttributeValueList"][1])[0]];
+                        } else {
+                            $filterExpression .= "$key = :$key AND ";
+                            $query["ExpressionAttributeValues"][":$key"] = [$attributeType => (string)($value)];
+                        }
+                    }
+
+                    if (!empty($filterExpression)) {
+                        $filterExpression = substr($filterExpression, 0, -5);
+                        $query['FilterExpression'] = $filterExpression;
+                    }
+                }
+            } else { 
+                $query['ScanFilter'] = $this->where;
+            }
         }
         $iterator = $this->client->getIterator($op, $query);
 
@@ -521,7 +554,6 @@ abstract class DynamoDbModel extends Model
 
     private function adjustCapacity()
     {
-            Log::info("Adjusting capacity $this->getTable()");
         $query = [
             'TableName' => $this->getTable(),
         ];
