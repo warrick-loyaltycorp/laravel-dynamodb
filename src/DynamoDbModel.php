@@ -351,6 +351,11 @@ abstract class DynamoDbModel extends Model
                         $type = gettype($value);
                         switch ($type) {
                         case "boolean":
+                            $attributeType = "BOOL";
+                            if (empty($value)) {
+                                $value = false;
+                            }
+                            break;
                         case "integer":
                         case "double":
                             $attributeType = "N";
@@ -364,12 +369,38 @@ abstract class DynamoDbModel extends Model
                             break;
                         }
                         if ($attributeType == "L") {
-                            $filterExpression .= "$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
-                            $query["ExpressionAttributeValues"][":".$key."1"] = [array_keys($value["AttributeValueList"][0])[0] => (string)array_values($value["AttributeValueList"][0])[0]];
-                            $query["ExpressionAttributeValues"][":".$key."2"] = [array_keys($value["AttributeValueList"][1])[0] => (string)array_values($value["AttributeValueList"][1])[0]];
+                            \Log::debug($key);
+                            \Log::debug(print_r($value, true));
+                            \Log::debug("=====");
+                            if (count($value["AttributeValueList"]) > 1) {
+                                $filterExpression .= "#$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
+                                $type1 = array_keys($value["AttributeValueList"][0])[0];
+                                $value1 = array_values($value["AttributeValueList"][0])[0];
+                                if ($type1 == 'BOOL' && empty($value1)) {
+                                    $value1 = false;
+                                }
+                                $type2 = array_keys($value["AttributeValueList"][1])[0];
+                                $value2 = array_values($value["AttributeValueList"][1])[0];
+                                if ($type2 == 'BOOL' && empty($value2)) {
+                                    $value2 = false;
+                                }
+                                $query["ExpressionAttributeNames"]["#$key"] = $key;
+                                $query["ExpressionAttributeValues"][":".$key."1"] = [$type1 => $value1];
+                                $query["ExpressionAttributeValues"][":".$key."2"] = [$type2 => $value2];
+                            } else {
+                                $filterExpression .= "#$key = :$key AND ";
+                                $type = array_keys($value["AttributeValueList"][0])[0];
+                                $value = array_values($value["AttributeValueList"][0])[0];
+                                if ($type == 'BOOL' && empty($value)) {
+                                    $value = false;
+                                }
+                                $query["ExpressionAttributeNames"]["#$key"] = $key;
+                                $query["ExpressionAttributeValues"][":$key"] = [$type => $value];
+                            }
                         } else {
-                            $filterExpression .= "$key = :$key AND ";
-                            $query["ExpressionAttributeValues"][":$key"] = [$attributeType => (string)($value)];
+                            $filterExpression .= "#$key = :$key AND ";
+                            $query["ExpressionAttributeNames"]["#$key"] = $key;
+                            $query["ExpressionAttributeValues"][":$key"] = [$attributeType => $value];
                         }
                     }
 
@@ -382,6 +413,10 @@ abstract class DynamoDbModel extends Model
                 $query['ScanFilter'] = $this->where;
             }
         }
+        \Log::debug("-----");
+        \Log::debug($op);
+        \Log::debug(print_r($query, true));
+        \Log::debug("=====");
         $iterator = $this->client->getIterator($op, $query);
 
         $maxRetries = 4;
