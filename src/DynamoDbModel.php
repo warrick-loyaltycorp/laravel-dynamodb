@@ -343,7 +343,7 @@ abstract class DynamoDbModel extends Model
                 if (ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
-                    while ($key = $this->conditionsContainIndexKey()) {
+                    while ($key = $this->conditionsContainIndexKey($query['IndexName'])) {
                         $query['KeyConditions'][$key] = $this->where[$key];
                         unset($this->where[$key]);
                     }
@@ -497,7 +497,7 @@ abstract class DynamoDbModel extends Model
         }
     }
 
-    protected function conditionsContainIndexKey()
+    protected function conditionsContainIndexKey($indexName = false)
     {
         if (empty($this->where)) {
             return false;
@@ -505,7 +505,9 @@ abstract class DynamoDbModel extends Model
 
         foreach ($this->dynamoDbIndexKeys as $key => $name) {
             if (isset($this->where[$key])) {
-                return $key;
+                if (!$indexName || ($indexName && $name === $indexName)) {
+                    return $key;
+                }
             }
         }
 
