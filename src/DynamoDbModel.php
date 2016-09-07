@@ -343,8 +343,10 @@ abstract class DynamoDbModel extends Model
                 if (ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
-                    $query['KeyConditions'] = [$key => $this->where[$key]];
-                    unset($this->where[$key]);
+                    while ($key = $this->conditionsContainIndexKey()) {
+                        $query['KeyConditions'][$key] = $this->where[$key];
+                        unset($this->where[$key]);
+                    }
 
                     $filterExpression = "";
                     foreach ($this->where as $key => $value) {
@@ -369,9 +371,6 @@ abstract class DynamoDbModel extends Model
                             break;
                         }
                         if ($attributeType == "L") {
-                            \Log::debug($key);
-                            \Log::debug(print_r($value, true));
-                            \Log::debug("=====");
                             if (count($value["AttributeValueList"]) > 1) {
                                 $filterExpression .= "#$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
                                 $type1 = array_keys($value["AttributeValueList"][0])[0];
@@ -413,10 +412,6 @@ abstract class DynamoDbModel extends Model
                 $query['ScanFilter'] = $this->where;
             }
         }
-        \Log::debug("-----");
-        \Log::debug($op);
-        \Log::debug(print_r($query, true));
-        \Log::debug("=====");
         $iterator = $this->client->getIterator($op, $query);
 
         $maxRetries = 4;
