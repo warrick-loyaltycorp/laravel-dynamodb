@@ -435,7 +435,7 @@ abstract class DynamoDbModel extends Model
 
                     $itemNum += 1;
                     if ($limit >= 0 && $itemNum == $limit) {
-                        if ($offset >= 0 && $offset == $pageNum) {
+                        if ($offset == -1 || ($offset >= 0 && $offset == $pageNum)) {
                             break;
                         }
 
