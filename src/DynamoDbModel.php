@@ -387,7 +387,8 @@ abstract class DynamoDbModel extends Model
                                 $query["ExpressionAttributeValues"][":".$key."1"] = [$type1 => $value1];
                                 $query["ExpressionAttributeValues"][":".$key."2"] = [$type2 => $value2];
                             } else {
-                                $filterExpression .= "#$key = :$key AND ";
+                                $operator = ComparisonOperator::getFilterExpressionOperator($value["ComparisonOperator"]);
+                                $filterExpression .= "#$key $operator :$key AND ";
                                 $type = array_keys($value["AttributeValueList"][0])[0];
                                 $value = array_values($value["AttributeValueList"][0])[0];
                                 if ($type == 'BOOL' && empty($value)) {

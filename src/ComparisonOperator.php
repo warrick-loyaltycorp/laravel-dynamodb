@@ -42,6 +42,13 @@ class ComparisonOperator
         return $mapping[$operator];
     }
 
+    public static function getFilterExpressionOperator($dynamoDbOperator)
+    {
+        $mapping = array_flip(static::getOperatorMapping());
+
+        return $mapping[$dynamoDbOperator];
+    }
+
     public static function getQuerySupportedOperators()
     {
         return ['EQ'];
