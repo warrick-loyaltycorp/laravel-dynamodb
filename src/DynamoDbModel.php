@@ -340,12 +340,22 @@ abstract class DynamoDbModel extends Model
             if ($key = $this->conditionsContainIndexKey()) {
                 $condition = array_get($this->where, "$key.ComparisonOperator");
 
-                if (ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
+                if (true) { //ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
+                    $invalidOperators = [];
                     while ($key = $this->conditionsContainIndexKey($query['IndexName'])) {
-                        $query['KeyConditions'][$key] = $this->where[$key];
+                        if (ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
+                            $query['KeyConditions'][$key] = $this->where[$key];
+                        } else {
+                            $invalidOperators[$key] = $this->where[$key];
+                        }
                         unset($this->where[$key]);
+                    }
+                    $this->where = array_merge($this->where, $invalidOperators);
+                    if (!isset($query['KeyConditions']) || count($query['KeyConditions']) == 0) {
+                        $op = 'Scan';
+                        unset($query['IndexName']);
                     }
 
                     $filterExpression = "";
@@ -413,6 +423,10 @@ abstract class DynamoDbModel extends Model
                 $query['ScanFilter'] = $this->where;
             }
         }
+        \Log::debug("------");
+        \Log::debug($op);
+        \Log::debug(print_r($query, true));
+        \Log::debug("======");
         $iterator = $this->client->getIterator($op, $query);
 
         $maxRetries = 4;
