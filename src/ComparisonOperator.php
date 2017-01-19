@@ -18,6 +18,7 @@ class ComparisonOperator
             '<=' => 'LE',
             'in' => 'IN',
             '!=' => 'NE',
+            'exists' => 'EXISTS',
             'not_exists' => 'NOT_EXISTS'
         ];
     }
