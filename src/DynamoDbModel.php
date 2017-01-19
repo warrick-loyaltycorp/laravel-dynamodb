@@ -340,7 +340,7 @@ abstract class DynamoDbModel extends Model
             if ($key = $this->conditionsContainIndexKey()) {
                 $condition = array_get($this->where, "$key.ComparisonOperator");
 
-                if (true) { //ComparisonOperator::isValidQueryDynamoDbOperator($condition)) {
+                if (true) { //ComparisonOperator::isValidQueryDynamoDbOperator($condition))
                     $op = 'Query';
                     $query['IndexName'] = $this->dynamoDbIndexKeys[$key];
                     $invalidOperators = [];
@@ -357,70 +357,76 @@ abstract class DynamoDbModel extends Model
                         $op = 'Scan';
                         unset($query['IndexName']);
                     }
+                }
+            }
 
-                    $filterExpression = "";
-                    foreach ($this->where as $key => $value) {
-                        $type = gettype($value);
-                        switch ($type) {
-                        case "boolean":
-                            $attributeType = "BOOL";
-                            if (empty($value)) {
+            $filterExpression = "";
+            foreach ($this->where as $key => $value) {
+                $type = gettype($value);
+                switch ($type) {
+                case "boolean":
+                    $attributeType = "BOOL";
+                    if (empty($value)) {
+                        $value = false;
+                    }
+                    break;
+                case "integer":
+                case "double":
+                    $attributeType = "N";
+                    break;
+                case "array":
+                    $attributeType = "L";
+                    break;
+                case "string":
+                default:
+                    $attributeType = "S";
+                    break;
+                }
+                if ($attributeType == "L") {
+                    if (count($value["AttributeValueList"]) > 1) {
+                        $filterExpression .= "#$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
+                        $type1 = array_keys($value["AttributeValueList"][0])[0];
+                        $value1 = array_values($value["AttributeValueList"][0])[0];
+                        if ($type1 == 'BOOL' && empty($value1)) {
+                            $value1 = false;
+                        }
+                        $type2 = array_keys($value["AttributeValueList"][1])[0];
+                        $value2 = array_values($value["AttributeValueList"][1])[0];
+                        if ($type2 == 'BOOL' && empty($value2)) {
+                            $value2 = false;
+                        }
+                        $query["ExpressionAttributeNames"]["#$key"] = $key;
+                        $query["ExpressionAttributeValues"][":".$key."1"] = [$type1 => $value1];
+                        $query["ExpressionAttributeValues"][":".$key."2"] = [$type2 => $value2];
+                    } else {
+                        $operator = ComparisonOperator::getFilterExpressionOperator($value["ComparisonOperator"]);
+                        \Log::debug("OPERATOR IS $operator");
+                        if ($operator == 'not_exists') {
+                            \Log::debug("USING NOT EXISTS");
+                            $filterExpression .= "attribute_not_exists(#$key) AND ";
+                        } else {
+                            $filterExpression .= "#$key $operator :$key AND ";
+                            $type = array_keys($value["AttributeValueList"][0])[0];
+                            $value = array_values($value["AttributeValueList"][0])[0];
+                            if ($type == 'BOOL' && empty($value)) {
                                 $value = false;
                             }
-                            break;
-                        case "integer":
-                        case "double":
-                            $attributeType = "N";
-                            break;
-                        case "array":
-                            $attributeType = "L";
-                            break;
-                        case "string":
-                        default:
-                            $attributeType = "S";
-                            break;
+                            $query["ExpressionAttributeValues"][":$key"] = [$type => $value];
                         }
-                        if ($attributeType == "L") {
-                            if (count($value["AttributeValueList"]) > 1) {
-                                $filterExpression .= "#$key BETWEEN :" . $key . "1 AND :" . $key . "2 AND ";
-                                $type1 = array_keys($value["AttributeValueList"][0])[0];
-                                $value1 = array_values($value["AttributeValueList"][0])[0];
-                                if ($type1 == 'BOOL' && empty($value1)) {
-                                    $value1 = false;
-                                }
-                                $type2 = array_keys($value["AttributeValueList"][1])[0];
-                                $value2 = array_values($value["AttributeValueList"][1])[0];
-                                if ($type2 == 'BOOL' && empty($value2)) {
-                                    $value2 = false;
-                                }
-                                $query["ExpressionAttributeNames"]["#$key"] = $key;
-                                $query["ExpressionAttributeValues"][":".$key."1"] = [$type1 => $value1];
-                                $query["ExpressionAttributeValues"][":".$key."2"] = [$type2 => $value2];
-                            } else {
-                                $operator = ComparisonOperator::getFilterExpressionOperator($value["ComparisonOperator"]);
-                                $filterExpression .= "#$key $operator :$key AND ";
-                                $type = array_keys($value["AttributeValueList"][0])[0];
-                                $value = array_values($value["AttributeValueList"][0])[0];
-                                if ($type == 'BOOL' && empty($value)) {
-                                    $value = false;
-                                }
-                                $query["ExpressionAttributeNames"]["#$key"] = $key;
-                                $query["ExpressionAttributeValues"][":$key"] = [$type => $value];
-                            }
-                        } else {
-                            $filterExpression .= "#$key = :$key AND ";
-                            $query["ExpressionAttributeNames"]["#$key"] = $key;
-                            $query["ExpressionAttributeValues"][":$key"] = [$attributeType => $value];
-                        }
+                        $query["ExpressionAttributeNames"]["#$key"] = $key;
+                        \Log::debug("EXPRESSION IS $filterExpression");
                     }
-
-                    if (!empty($filterExpression)) {
-                        $filterExpression = substr($filterExpression, 0, -5);
-                        $query['FilterExpression'] = $filterExpression;
-                    }
+                } else {
+                    $filterExpression .= "#$key = :$key AND ";
+                    $query["ExpressionAttributeNames"]["#$key"] = $key;
+                    $query["ExpressionAttributeValues"][":$key"] = [$attributeType => $value];
                 }
-            } else { 
-                $query['ScanFilter'] = $this->where;
+
+            }
+
+            if (!empty($filterExpression)) {
+                $filterExpression = substr($filterExpression, 0, -5);
+                $query['FilterExpression'] = $filterExpression;
             }
         }
         \Log::debug("------");
