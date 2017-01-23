@@ -429,10 +429,12 @@ abstract class DynamoDbModel extends Model
                 $query['FilterExpression'] = $filterExpression;
             }
         }
-        \Log::debug("------");
-        \Log::debug($op);
-        \Log::debug(print_r($query, true));
-        \Log::debug("======");
+        if ($op == 'Scan') {
+            \Log::debug("------");
+            \Log::debug($op);
+            \Log::debug(print_r($query, true));
+            \Log::debug("======");
+        }
         $iterator = $this->client->getIterator($op, $query);
 
         $maxRetries = 4;
