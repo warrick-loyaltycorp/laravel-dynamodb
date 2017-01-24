@@ -414,7 +414,6 @@ abstract class DynamoDbModel extends Model
                             $query["ExpressionAttributeValues"][":$key"] = [$type => $value];
                         }
                         $query["ExpressionAttributeNames"]["#$key"] = $key;
-                        \Log::debug("EXPRESSION IS $filterExpression");
                     }
                 } else {
                     $filterExpression .= "#$key = :$key AND ";
