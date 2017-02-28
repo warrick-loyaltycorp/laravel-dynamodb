@@ -273,6 +273,20 @@ class DynamoDbModelTest extends TestCase
 
     }
 
+    public function testGetAllRecordsWithCONTAINSCondition()
+    {
+        $this->seed([
+            'name' => ['S' => 'DynamoDB Test'],
+        ]);
+        $this->seed([
+            'name' => ['S' => 'DynamoDB Test2'],
+        ]);
+
+        $items = $this->testModel->where('name', 'contains', 'DynamoDB')->get()->toArray();
+
+        $this->assertEquals(2, count($items));
+    }
+
     protected function seed($attributes = [])
     {
         $item = [

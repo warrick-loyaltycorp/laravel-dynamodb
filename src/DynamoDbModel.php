@@ -402,6 +402,11 @@ abstract class DynamoDbModel extends Model
                         $operator = ComparisonOperator::getFilterExpressionOperator($value["ComparisonOperator"]);
                         if ($operator == 'not_exists') {
                             $filterExpression .= "attribute_not_exists(#$key) AND ";
+                        } else if ($operator == 'contains') {
+                            $filterExpression .= "contains(#$key, :$key) AND ";
+                            $type = array_keys($value["AttributeValueList"][0])[0];
+                            $value = array_values($value["AttributeValueList"][0])[0];
+                            $query["ExpressionAttributeValues"][":$key"] = [$type => $value];
                         } else if ($operator == 'exists') {
                             $filterExpression .= "attribute_exists(#$key) AND ";
                         } else {
