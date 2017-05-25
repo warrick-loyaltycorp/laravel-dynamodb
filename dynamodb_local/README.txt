@@ -8,17 +8,9 @@ For an overview of DynamoDB Local please refer to the documentation at http://do
 Release Notes
 -----------------------------
 
-2015-07-16_1.0
+2016-05-17_1.0
 
-  * Add support for DynamoDB Streams
-
-Note the following difference in DynamoDBLocal:
-
-  * Exception messages may differ from those returned by the service.
-
-  * Shard creation behavior may differ from that of the service since Local does not support partitioning.
-
-
+  * Bug fix for Query validation preventing primary key attributes in query filter expressions 
 
 Running DynamoDB Local
 ---------------------------------------------------------------

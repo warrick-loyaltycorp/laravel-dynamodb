@@ -1,28 +1,63 @@
 laravel-dynamodb
 ================
-Only supports hash primary key type
+
+[![Latest Stable Version](https://poser.pugx.org/baopham/dynamodb/v/stable)](https://packagist.org/packages/baopham/dynamodb)
+[![Total Downloads](https://poser.pugx.org/baopham/dynamodb/downloads)](https://packagist.org/packages/baopham/dynamodb)
+[![Latest Unstable Version](https://poser.pugx.org/baopham/dynamodb/v/unstable)](https://packagist.org/packages/baopham/dynamodb)
+[![License](https://poser.pugx.org/baopham/dynamodb/license)](https://packagist.org/packages/baopham/dynamodb)
+
+Supports all key types - primary hash key and composite keys.
+
+> For advanced users only. If you're not familiar with Laravel, Laravel Eloquent and DynamoDB, then I suggest that you get familiar with those first. 
+
+> **Breaking Changes** for v0.4
+>  * If you're using v0.3 and below, please see [here](./README.v0.3.md)
+>  * To upgrade to v0.4, please see the [migration note](./MIGRATION.md)
+
+* [Install](#install)
+* [Usage](#usage)
+* [Indexes](#indexes)
+* [Composite Keys](#composite-keys)
+* [Test](#test)
+* [Requirements](#requirements)
+* [Todo](#todo)
+* [License](#license)
+* [Author and Contributors](#author-and-contributors)
 
 Install
 ------
 
-```json
-// composer.json
-"require": {
-    "baopham/dynamodb": "dev-master"
-}
-```
+* Composer install
+    ```bash
+    composer require baopham/dynamodb
+    ```
 
-Install service provider:
+* Install service provider:
 
-```php
-// config/app.php
+    ```php
+    // config/app.php
+    
+    'providers' => [
+        ...
+        BaoPham\DynamoDb\DynamoDbServiceProvider::class,
+        ...
+    ];
+    ```
 
-'providers' => [
+* Put DynamoDb config in `config/services.php`:
+
+    ```php
+    // config/services.php
     ...
-    BaoPham\DynamoDb\DynamoDbServiceProvider::class,
+    'dynamodb' => [
+        'key' => env('DYNAMODB_KEY'),
+        'secret' => env('DYNAMODB_SECRET'),
+        'region' => env('DYNAMODB_REGION'),
+        'local_endpoint' => env('DYNAMODB_LOCAL_ENDPOINT'), // see http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
+        'local' => env('DYNAMODB_LOCAL'), // true or false? should use dynamodb_local or not?
+    ],
     ...
-];
-```
+    ```
 
 Usage
 -----
@@ -61,23 +96,96 @@ $model->fillableAttr2 = 'foo';
 // DynamoDb doesn't support incremented Id, so you need to use UUID for the primary key.
 $model->id = 'de305d54-75b4-431b-adb2-eb6b9e546014'
 $model->save();
+
+// chunk
+$model->chunk(10, function ($records) {
+    foreach ($records as $record) {
+
+    }
+});
 ```
 
 * Or if you want to sync your DB table with a DynamoDb table, use trait `BaoPham\DynamoDb\ModelTrait`, it will call a `PutItem` after the model is saved.
 
-* Put DynamoDb config in `config/services.php`:
+Indexes
+-----------
+If your table has indexes, make sure to declare them in your model class like so
 
 ```php
-// config/services.php
-    ...
-    'dynamodb' => [
-        'key' => env('DYNAMODB_KEY'),
-        'secret' => env('DYNAMODB_SECRET'),
-        'region' => env('DYNAMODB_REGION'),
-        'local_endpoint' => env('DYNAMODB_LOCAL_ENDPOINT') // see http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
-        'local' => env('DYNAMODB_LOCAL')
+/**
+ * Indexes.
+ * [
+ *     'simple_index_name' => [
+ *          'hash' => 'index_key'
+ *     ],
+ *     'composite_index_name' => [
+ *          'hash' => 'index_hash_key',
+ *          'range' => 'index_range_key'
+ *     ],
+ * ].
+ *
+ * @var array
+ */
+protected $dynamoDbIndexKeys = [
+    'count_index' => [
+        'hash' => 'count'
     ],
-    ...
+];
+```
+
+Note that order of index matters when a key exists in multiple indexes.  
+For example, we have this
+
+```php
+$this->where('user_id', 123)->where('count', '>', 10)->get();
+```
+
+with
+
+```php
+protected $dynamoDbIndexKeys = [
+    'count_index' => [
+        'hash' => 'user_id',
+        'range' => 'count'
+    ],
+    'user_index' => [
+        'hash' => 'user_id',
+    ],
+];
+```
+
+will use `count_index`.
+
+```php
+protected $dynamoDbIndexKeys = [
+    'user_index' => [
+        'hash' => 'user_id',
+    ],
+    'count_index' => [
+        'hash' => 'user_id',
+        'range' => 'count'
+    ]
+];
+```
+
+will use `user_index`.
+
+
+Composite Keys
+--------------
+To use composite keys with your model:
+
+* Set `$compositeKey` to an array of the attributes names comprising the key, e.g.
+
+```php
+protected $primaryKey = ['customer_id'];
+protected $compositeKey = ['customer_id', 'agent_id'];
+```
+
+* To find a record with a composite key
+
+```php
+$model->find(['id1' => 'value1', 'id2' => 'value2']);
 ```
 
 Test
@@ -89,72 +197,28 @@ $ java -Djava.library.path=./DynamoDBLocal_lib -jar dynamodb_local/DynamoDBLocal
 $ ./vendor/bin/phpunit
 ```
 
-This is the [test table created for DynamoDb local by the DynamoDb local shell](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.Shell.html)
+* DynamoDb local version: 2016-01-07_1.0
 
-```javascript
-var params = {
-    TableName: 'test_model',
-    KeySchema: [ // The type of of schema.  Must start with a HASH type, with an optional second RANGE.
-        { // Required HASH type attribute
-            AttributeName: 'id',
-            KeyType: 'HASH',
-        }
-    ],
-    AttributeDefinitions: [ // The names and types of all primary and index key attributes only
-        {
-            AttributeName: 'id',
-            AttributeType: 'S', // (S | N | B) for string, number, binary
-        },
-        {
-            AttributeName: 'count',
-            AttributeType: 'N', // (S | N | B) for string, number, binary
-        }
-    ],
-    ProvisionedThroughput: { // required provisioned throughput for the table
-        ReadCapacityUnits: 1, 
-        WriteCapacityUnits: 1, 
-    },
-    GlobalSecondaryIndexes: [ // optional (list of GlobalSecondaryIndex)
-        { 
-            IndexName: 'count_index', 
-            KeySchema: [
-                { // Required HASH type attribute
-                    AttributeName: 'count',
-                    KeyType: 'HASH',
-                }
-            ],
-            Projection: { // attributes to project into the index
-                ProjectionType: 'ALL', // (ALL | KEYS_ONLY | INCLUDE)
-            },
-            ProvisionedThroughput: { // throughput to provision to the index
-                ReadCapacityUnits: 1,
-                WriteCapacityUnits: 1,
-            },
-        },
-        // ... more global secondary indexes ...
-    ]
-};
-dynamodb.createTable(params, function(err, data) {
-    if (err) print(err); // an error occurred
-    else print(data); // successful response
-});
-```
+* DynamoDb local schema for tests created by the [DynamoDb local shell](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.Shell.html) is located [here](dynamodb_local_schema.js)
 
-* DynamoDb local version: 2015-07-16_1.0
+
+Requirements
+-------------
+Laravel ^5.1
+
 
 TODO
 ----
-* Upgrade a few legacy attributes: `AttributesToGet`, `ScanFilter`, ...
+- [ ] Upgrade a few legacy attributes: `AttributesToGet`, `ScanFilter`, ...
 
-
-Requirements:
--------------
-Laravel 5.1
-
-License:
+License
 --------
 MIT
 
-Author:
+
+Author and Contributors
 -------
-Bao Pham
+* [Bao Pham](https://github.com/baopham/laravel-dynamodb)
+* [warrick-loyaltycorp](https://github.com/warrick-loyaltycorp)
+* [Alexander Ward](https://github.com/cthos)
+* [Quang Ngo](https://github.com/vanquang9387)
